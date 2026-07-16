@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kuli Kuli — Packaging Inventory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Brand tokens ────────────────────────────────── */
+    :root {
+      --forest:   #026251;
+      --kkgreen:  #52B480;
+      --neon:     #D0DE41;
+      --orange:   #F15F23;
+      --cream:    #F4F5EA;
+      --white:    #FFFFFF;
+      --ink:      #1D1D1D;
+      --sidebar-w: 300px;
+      --radius:   12px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--cream);
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Top bar ─────────────────────────────────────── */
+    .topbar {
+      background: var(--forest);
+      color: var(--white);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+      height: 60px;
+      flex-shrink: 0;
+      border-bottom: 3px solid var(--neon);
+    }
+
+    .topbar-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .topbar-logo svg {
+      height: 28px;
+      width: auto;
+    }
+
+    .topbar-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.075em;
+      text-transform: uppercase;
+      color: var(--neon);
+    }
+
+    .topbar-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.075em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.5);
+    }
+
+    /* ── Layout ──────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      background: var(--forest);
+      color: var(--white);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+    .search-wrap {
+      padding: 16px 16px 8px;
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--white);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      outline: none;
+      transition: border-color 150ms;
+    }
+    .search-input::placeholder { color: rgba(255,255,255,0.35); }
+    .search-input:focus { border-color: var(--neon); }
+
+    .category-group { margin-bottom: 4px; }
+
+    .category-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .category-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--neon);
+    }
+
+    .category-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: rgba(255,255,255,0.35);
+    }
+
+    .category-chevron {
+      color: rgba(255,255,255,0.35);
+      font-size: 10px;
+      transition: transform 150ms;
+    }
+    .category-group.collapsed .category-chevron { transform: rotate(-90deg); }
+    .category-group.collapsed .item-list { display: none; }
+
+    .item-list { list-style: none; padding-bottom: 4px; }
+
+    .item-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding: 9px 16px 9px 20px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      transition: background 100ms;
+      border-left: 3px solid transparent;
+    }
+    .item-btn:hover { background: rgba(255,255,255,0.06); }
+    .item-btn.active {
+      background: rgba(208,222,65,0.12);
+      border-left-color: var(--neon);
+    }
+
+    .item-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-green  { background: #52B480; }
+    .dot-orange { background: #F15F23; }
+    .dot-red    { background: #E05252; }
+
+    .item-name {
+      font-size: 13px;
+      color: rgba(255,255,255,0.85);
+      line-height: 1.3;
+      flex: 1;
+    }
+    .item-btn.active .item-name { color: var(--white); }
+
+    .item-sku {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: rgba(255,255,255,0.3);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── Main panel ───────────────────────────────────── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .empty-state {
+      margin: auto;
+      text-align: center;
+      color: rgba(2,98,81,0.35);
+    }
+    .empty-state svg { opacity: 0.25; margin-bottom: 16px; }
+    .empty-state p {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* ── Detail card ──────────────────────────────────── */
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .detail-category-chip {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      background: var(--neon);
+      color: var(--forest);
+      border-radius: 4px;
+      padding: 3px 8px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+
+    .detail-name {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--forest);
+      line-height: 1.1;
+    }
+
+    .detail-sku {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--kkgreen);
+      margin-top: 4px;
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .badge-stocked   { background: rgba(82,180,128,0.15); color: #52B480; border: 1px solid rgba(82,180,128,0.3); }
+    .badge-low       { background: rgba(241,95,35,0.12); color: var(--orange); border: 1px solid rgba(241,95,35,0.25); }
+    .badge-stockout  { background: rgba(224,82,82,0.12); color: #E05252; border: 1px solid rgba(224,82,82,0.25); }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+
+    .stat-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .stat-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(2,98,81,0.5);
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 700;
+      color: var(--forest);
+      line-height: 1;
+    }
+    .stat-value.zero { color: #E05252; }
+
+    .stat-sub {
+      font-size: 12px;
+      color: rgba(29,29,29,0.45);
+    }
+
+    .info-card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .info-card-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(2,98,81,0.5);
+      margin-bottom: 16px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--cream);
+    }
+    .info-row:last-child { border-bottom: none; }
+
+    .info-row-label {
+      font-size: 14px;
+      color: rgba(29,29,29,0.6);
+    }
+
+    .info-row-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--ink);
+      font-weight: 500;
+    }
+
+    .po-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(241,95,35,0.1);
+      color: var(--orange);
+      border: 1px solid rgba(241,95,35,0.25);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+
+    .po-none {
+      color: rgba(29,29,29,0.3);
+      font-size: 13px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* ── Product image ───────────────────────────────── */
+    .product-img-wrap {
+      flex-shrink: 0;
+      width: 110px;
+      height: 110px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .product-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .product-img-placeholder {
+      width: 110px;
+      height: 110px;
+      border-radius: 16px;
+      background: var(--cream);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* ── Tabs ────────────────────────────────────────── */
+    .tab-bar {
+      display: flex;
+      gap: 4px;
+      border-bottom: 2px solid rgba(2,98,81,0.1);
+      padding-bottom: 0;
+    }
+
+    .tab-btn {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 10px 20px;
+      border: none;
+      background: transparent;
+      color: rgba(2,98,81,0.4);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color 120ms, border-color 120ms;
+    }
+    .tab-btn:hover { color: var(--forest); }
+    .tab-btn.active {
+      color: var(--forest);
+      border-bottom-color: var(--neon);
+      font-weight: 600;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: contents; }
+
+    .ingredients-empty {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 48px 32px;
+      text-align: center;
+      color: rgba(2,98,81,0.3);
+    }
+    .ingredients-empty p {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-top: 12px;
+    }
+
+    /* ── Ingredient Calculator ───────────────────────── */
+    .calc-input-card {
+      background: var(--forest);
+      border-radius: var(--radius);
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .calc-input-left { display: flex; flex-direction: column; gap: 4px; }
+    .calc-input-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--neon);
+    }
+    .calc-input-sub {
+      font-size: 12px;
+      color: rgba(255,255,255,0.45);
+    }
+    .units-input {
+      background: rgba(255,255,255,0.1);
+      border: 2px solid var(--neon);
+      border-radius: 8px;
+      padding: 10px 16px;
+      color: var(--white);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 600;
+      width: 160px;
+      text-align: right;
+      outline: none;
+    }
+    .units-input:focus { background: rgba(255,255,255,0.15); }
+
+    .calc-summary {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .calc-summary-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(2,98,81,0.5);
+    }
+    .calc-max-units {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--forest);
+    }
+    .calc-max-units.ok    { color: #52B480; }
+    .calc-max-units.warn  { color: var(--orange); }
+    .calc-max-units.short { color: #E05252; }
+
+    .calc-verdict {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .verdict-ok    { background: rgba(82,180,128,0.12); color: #52B480; border: 1px solid rgba(82,180,128,0.3); }
+    .verdict-short { background: rgba(224,82,82,0.1);   color: #E05252; border: 1px solid rgba(224,82,82,0.25); }
+
+    .ing-table {
+      background: var(--white);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .ing-table-header {
+      display: grid;
+      grid-template-columns: 1fr 70px 100px 100px 36px;
+      padding: 10px 20px;
+      border-bottom: 2px solid var(--cream);
+    }
+    .ing-th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: rgba(2,98,81,0.45);
+    }
+    .ing-th:not(:first-child) { text-align: right; }
+
+    .ing-row {
+      display: grid;
+      grid-template-columns: 1fr 70px 100px 100px 36px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--cream);
+      align-items: center;
+      transition: background 100ms;
+    }
+    .ing-row:last-child { border-bottom: none; }
+    .ing-row:hover { background: rgba(2,98,81,0.02); }
+
+    .ing-name-wrap { display: flex; flex-direction: column; gap: 2px; }
+    .ing-name { font-size: 14px; color: var(--ink); font-weight: 500; }
+    .ing-sku-tag { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: rgba(2,98,81,0.45); letter-spacing: 0.04em; }
+    .ing-pct  { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: rgba(29,29,29,0.5); text-align: right; }
+    .ing-kg   { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--forest); font-weight: 600; text-align: right; }
+    .ing-avail { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: rgba(29,29,29,0.6); text-align: right; }
+
+    .ing-status {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-left: auto;
+    }
+    .ing-status.ok    { background: #52B480; }
+    .ing-status.short { background: #E05252; }
+
+    .ing-row.short-row .ing-name { color: #E05252; }
+    .ing-row.short-row { background: rgba(224,82,82,0.03); }
+
+    /* ── Animations ──────────────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 180ms ease-out both; }
+  </style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <!-- Kuli Kuli official logo -->
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 122 65" height="40" width="auto">
+      <path fill="#52B480" d="M121.727 1.56821C121.727 2.37701 121.074 3.01493 120.227 3.01493C119.379 3.01493 118.718 2.37701 118.718 1.56821C118.718 0.759412 119.387 0.140472 120.227 0.140472C121.066 0.140472 121.727 0.778398 121.727 1.56821ZM119.095 1.56821C119.095 2.20613 119.577 2.71116 120.238 2.71116C120.899 2.71116 121.354 2.20613 121.354 1.5796C121.354 0.953067 120.88 0.429058 120.231 0.429058C119.581 0.429058 119.099 0.941676 119.099 1.57201L119.095 1.56821ZM119.997 2.31625H119.659V0.888515C119.791 0.861935 119.982 0.846746 120.223 0.846746C120.499 0.846746 120.623 0.888515 120.732 0.953067C120.814 1.01382 120.876 1.12774 120.876 1.26823C120.876 1.42392 120.751 1.54543 120.573 1.59859V1.61757C120.716 1.67073 120.794 1.77326 120.841 1.96691C120.888 2.18335 120.911 2.27069 120.95 2.32385H120.584C120.542 2.27069 120.514 2.14158 120.468 1.97451C120.44 1.81882 120.351 1.74668 120.164 1.74668H120.005V2.32005L119.997 2.31625ZM120.005 1.50745H120.164C120.351 1.50745 120.503 1.4467 120.503 1.29861C120.503 1.16951 120.405 1.08217 120.192 1.08217C120.102 1.08217 120.04 1.08977 120.005 1.10116V1.51125V1.50745Z"></path>
+      <path fill="#D0DE41" d="M50.3441 32.5569V49.1772C50.3441 50.1644 49.5238 50.9694 48.5092 50.9694C47.4945 50.9694 46.6742 50.1682 46.6742 49.1772V32.5569H32.5313V48.919H32.5157C32.5157 57.7588 36.3761 64.9278 48.6336 64.9278C61.9524 64.9278 64.7281 57.7816 64.7514 48.9569H64.7669V32.5569H50.348H50.3441Z"></path>
+      <path fill="#D0DE41" d="M67.1499 32.5228V64.9127H97.8694V52.5795H79.3374V32.4886"></path>
+      <path fill="#D0DE41" d="M117.07 44.6851H100.412V64.7836H117.07V44.6851Z"></path>
+      <path fill="#D0DE41" d="M117.074 32.3747C117.074 37.2389 113.338 40.7399 108.731 40.7399C104.124 40.7399 100.389 37.2389 100.389 32.3747"></path>
+      <path fill="#D0DE41" d="M11.1263 58.6967L15.5931 64.9127H15.9196L32.64 65L17.5446 48.6873L32.951 32.5645L15.9196 32.6101V32.6253H15.7369L11.0796 38.8565V32.6253H6.10352e-05V64.9127H11.1263V58.6967Z"></path>
+      <path fill="#52B480" d="M50.3441 0.182281V16.8025C50.3441 17.7898 49.5238 18.5948 48.5092 18.5948C47.4945 18.5948 46.6742 17.7936 46.6742 16.8025V0.235442H32.5313V16.5443H32.5157C32.5157 25.3841 36.3761 32.5532 48.6336 32.5532C61.9524 32.5532 64.7281 25.4069 64.7514 16.5823H64.7669V0.182281H50.348H50.3441Z"></path>
+      <path fill="#52B480" d="M67.1499 0.144269V32.5379H97.8694V20.2047H79.3374V0.113892"></path>
+      <path fill="#52B480" d="M117.07 12.3105H100.412V32.4089H117.07V12.3105Z"></path>
+      <path fill="#52B480" d="M117.074 0C117.074 4.86418 113.338 8.36517 108.731 8.36517C104.124 8.36517 100.389 4.86418 100.389 0"></path>
+      <path fill="#52B480" d="M15.9896 32.6291L32.6594 32.5646L17.6146 16.3165L33.0054 0.239227H15.9896V0.254416H15.8108L11.1496 6.48558V0.254416H0.0700371L6.10352e-05 32.6215H11.0835L11.1535 26.3258L15.7369 32.6253L15.9896 32.6291Z"></path>
+    </svg>
+    <span class="topbar-title">Production Planning Dashboard &nbsp;·&nbsp; By: Edgard Pinto</span>
+  </div>
+  <div style="display:flex; align-items:center; gap:24px;">
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#52B480;"></div> Stocked</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#F15F23;"></div> Low / Need Order</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#E05252;"></div> Out of Stock</div>
+    </div>
+    <span class="topbar-meta" id="last-updated">Last updated 07-13-2026</span>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar">
+    <div class="search-wrap">
+      <input class="search-input" type="text" placeholder="Search items..." id="searchInput" />
+    </div>
+    <div id="sidebarNav"></div>
+  </nav>
+
+  <!-- MAIN PANEL -->
+  <main class="main" id="mainPanel">
+    <div class="empty-state">
+      <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="8" y="16" width="48" height="36" rx="4" stroke="#026251" stroke-width="2.5"/>
+        <path d="M8 24H56" stroke="#026251" stroke-width="2.5"/>
+        <path d="M20 16V8" stroke="#026251" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M44 16V8" stroke="#026251" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="32" cy="38" r="8" stroke="#026251" stroke-width="2.5"/>
+        <path d="M29 38L31 40L35 36" stroke="#026251" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <p>Select an item to view details</p>
+    </div>
+  </main>
+
+</div>
+
+<script>
+// ── GOOGLE SHEETS SOURCE ──────────────────────────────────────────
+const CSV_URL     = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQAwNh4drdRvrTMBXsYUH0a7XkgD_s9e4mpo_cJcqCUawWnRVV9N3f6ctmOLm-RPxm3gPHmPTfOI3VT/pub?gid=0&single=true&output=csv';
+const ING_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQAwNh4drdRvrTMBXsYUH0a7XkgD_s9e4mpo_cJcqCUawWnRVV9N3f6ctmOLm-RPxm3gPHmPTfOI3VT/pub?gid=2057217891&single=true&output=csv';
+
+// ── FALLBACK DATA (used if sheet is not yet public) ───────────────
+const FALLBACK_SKUs = [
+  { sku:"PKG190v1.0", category:"DRNKMX", name:"900 Crave Reset",       inventory:1851,   nextProdDate:"January",   nextProdQty:15000, leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG191v1.0", category:"DRNKMX", name:"901 Her Power",         inventory:0,      nextProdDate:"August",    nextProdQty:5000,  leadTime:"6-8 Weeks", po:"PO3109" },
+  { sku:"PKG094v2.0", category:"GUM",    name:"700 Green Gummies",     inventory:75636,  nextProdDate:"September", nextProdQty:20000, leadTime:"Turnkey",   po:null },
+  { sku:"PKG095v2.0", category:"GUM",    name:"701 Chaga Gummies",     inventory:9722,   nextProdDate:"September", nextProdQty:5000,  leadTime:"Turnkey",   po:null },
+  { sku:"PKG096",     category:"GUM",    name:"702 Turmeric Gummies",  inventory:0,      nextProdDate:"October",   nextProdQty:5000,  leadTime:"Turnkey",   po:null },
+  { sku:"PKG108v2.1", category:"GUM",    name:"703 Sour Gummies",      inventory:15480,  nextProdDate:"September", nextProdQty:10000, leadTime:"Turnkey",   po:null },
+  { sku:"PKG121v1.0", category:"GUM",    name:"705 WFM PL Gummies",    inventory:25926,  nextProdDate:"August",    nextProdQty:5000,  leadTime:"Turnkey",   po:null },
+  { sku:"PKG117v3.0", category:"LATTE",  name:"1000 Hibiscus Berry",   inventory:21670,  nextProdDate:"November",  nextProdQty:5000,  leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG116v2.0", category:"LATTE",  name:"1001 Blue Chamomile",   inventory:12303,  nextProdDate:"October",   nextProdQty:5000,  leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG118v2.1", category:"LATTE",  name:"1002 Matcha Moringa",   inventory:15850,  nextProdDate:"October",   nextProdQty:20000, leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG119v2.1", category:"LATTE",  name:"1003 Ube Latte",        inventory:1692,   nextProdDate:"August",    nextProdQty:4000,  leadTime:"6-8 Weeks", po:"PO3111" },
+  { sku:"PKG074v6.0", category:"PM",     name:"200 7.4 Oz",            inventory:280047, nextProdDate:"September", nextProdQty:30000, leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG077v6.0", category:"PM",     name:"203 10 Oz",             inventory:44704,  nextProdDate:"January",   nextProdQty:17032, leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG103v2.0", category:"PM",     name:"206 5 Oz WFM PL",       inventory:16629,  nextProdDate:"October",   nextProdQty:15000, leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG104v1.0", category:"PM",     name:"207 5 Oz Branded",      inventory:2051,   nextProdDate:"October",   nextProdQty:2000,  leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG100v4.0", category:"SFBLND", name:"800 In The Mood",       inventory:5625,   nextProdDate:"April",     nextProdQty:5000,  leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG102v3.0", category:"SFBLND", name:"801 Gut Bliss",         inventory:59784,  nextProdDate:"March",     nextProdQty:10000, leadTime:"6-8 Weeks", po:null },
+  { sku:"PKG101v3.0", category:"SFBLND", name:"802 Green Blend",       inventory:3475,   nextProdDate:"August",    nextProdQty:10000, leadTime:"6-8 Weeks", po:"PO3108" },
+  { sku:"PKG114v2.0", category:"SFBLND", name:"803 Marine Glow",       inventory:3652,   nextProdDate:"August",    nextProdQty:45000, leadTime:"6-8 Weeks", po:"PO3108" },
+];
+
+let SKUs = [];
+
+// ── CSV PARSER ────────────────────────────────────────────────────
+function parseCSV(text) {
+  return text.split('\n').map(line => {
+    const cols = [];
+    let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+      else { cur += ch; }
+    }
+    cols.push(cur.trim());
+    return cols;
+  });
+}
+
+function parseSheetData(rows) {
+  // Grab "Last Updated" value from the sheet header area
+  for (const row of rows) {
+    if (row[0]?.toLowerCase().includes('last updated')) {
+      const d = row[1]?.trim();
+      if (d) document.getElementById('last-updated').textContent = `Live · Last updated ${d}`;
+      break;
+    }
+  }
+
+  // Find the header row (first col === "SKU")
+  let hi = rows.findIndex(r => r[0]?.trim().toUpperCase() === 'SKU');
+  if (hi === -1) return [];
+
+  return rows.slice(hi + 1).reduce((acc, row) => {
+    const sku  = row[0]?.trim();
+    const item = row[1]?.trim();
+    if (!sku || !item) return acc;
+
+    const sep      = item.indexOf(' : ');
+    const category = sep > -1 ? item.slice(0, sep).trim() : 'OTHER';
+    const name     = sep > -1 ? item.slice(sep + 3).trim() : item;
+    const inventory   = parseInt((row[2] || '0').replace(/\D/g, '')) || 0;
+    const nextProdDate = row[3]?.trim() || '';
+    const nextProdQty  = parseInt((row[4] || '0').replace(/\D/g, '')) || 0;
+    const leadTime     = row[5]?.trim() || '';
+    const poRaw        = row[6]?.trim();
+    const po           = (!poRaw || poRaw === '-') ? null : poRaw;
+
+    acc.push({ sku, category, name, inventory, nextProdDate, nextProdQty, leadTime, po });
+    return acc;
+  }, []);
+}
+
+// ── PRODUCT IMAGES ───────────────────────────────────────────────
+// Add more SKUs here as you add product pages
+const PRODUCT_IMAGES = {
+  // Superfood Blends
+  'PKG100v4.0': 'https://www.kulikulifoods.com/cdn/shop/files/In_The_Mood_Front_0c16f0fd-5810-4c48-b5cb-2bb53c5e9fe6.png?v=1780943652',
+  'PKG102v3.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Gut_Bliss_Front.png?v=1780943764',
+  'PKG101v3.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Super_Greens_Front.png?v=1780943728',
+  'PKG114v2.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Marine_Glow_Front.png?v=1780943693',
+  // Drink Mixes
+  'PKG190v1.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Crave_Reset_Front.png?v=1771963891',
+  'PKG191v1.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Her_Power_Front.png?v=1771966383',
+  // Gummies
+  'PKG094v2.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/KK_Gummies_GreenApple_FRONT_5.png?v=1747683992',
+  'PKG095v2.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/KK_Gummies_MixedBerry_FRONT_2.png?v=1747684485',
+  'PKG096':     'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/KK_Gummies_Lemon_FRONT_2.png?v=1747684623',
+  'PKG108v2.1': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/KK_Gummies_SourBerry_FRONT_1.png?v=1747683662',
+  // Lattes
+  'PKG117v3.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Pink_Latte_Front_New_bfecf96f-9982-4601-9fc0-80c2bbc4d5d5.png?v=1780943378',
+  'PKG116v2.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Blue_Latte_Front_New_865d2afc-6be3-40ec-9cfd-21c7322dc722.png?v=1780943234',
+  'PKG118v2.1': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Green_Latte_Front_a0427d62-f2d4-4f63-be55-9b85c3556f47.png?v=1780943340',
+  'PKG119v2.1': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/Purple_Latte_Front_be6112f6-b88f-482e-af8c-31af65a46aea.png?v=1780943310',
+  // Moringa Powder
+  'PKG074v6.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/KK_Powder_PureMoringa_7.4oz_FRONT_6.png?v=1747683045',
+  'PKG077v6.0': 'https://cdn.shopify.com/s/files/1/0268/5373/6529/files/PMP10.6ozFront.png?v=1739382680',
+};
+
+// ── BOM DATA ─────────────────────────────────────────────────────
+const BOM = {
+  // ── Superfood Blends ──
+  'PKG100v4.0': {
+    weightPerUnit: 170,
+    ingredients: [
+      { sku:'Ingredients : ING039', name:'Organic Baobab Powder',    pct:0.4505, available:722  },
+      { sku:'Ingredients : ING057', name:'Organic Hibiscus Powder',  pct:0.4505, available:429  },
+      { sku:'Ingredients : ING038', name:'Organic Maca Root Powder', pct:0.015,  available:84   },
+      { sku:'Ingredients : ING100', name:'Organic Shatavri Powder',  pct:0.084,  available:93   },
+    ]
+  },
+  'PKG102v3.0': {
+    weightPerUnit: 170,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa Powder',    pct:0.44,  available:43049 },
+      { sku:'Ingredients : ING053', name:'Organic Lucuma Powder',     pct:0.24,  available:800   },
+      { sku:'Ingredients : ING039', name:'Organic Baobab Powder',     pct:0.13,  available:722   },
+      { sku:'Ingredients : ING055', name:'Organic Lemon Balm Powder', pct:0.095, available:669   },
+      { sku:'Ingredients : ING054', name:'Organic Ginger Powder',     pct:0.095, available:688   },
+    ]
+  },
+  'PKG101v3.0': {
+    weightPerUnit: 170,
+    ingredients: [
+      { sku:'Ingredients : ING094', name:'Organic Green Power Mix', pct:0.9476, available:3748 },
+      { sku:'Ingredients : ING050', name:'Organic Broccoli Powder', pct:0.055,  available:216  },
+    ]
+  },
+  'PKG114v2.0': {
+    weightPerUnit: 170,
+    ingredients: [
+      { sku:'Ingredients : ING101', name:'Organic Date Powder',        pct:0.4865, available:5349 },
+      { sku:'Ingredients : ING039', name:'Organic Baobab Powder',      pct:0.23,   available:722  },
+      { sku:'Ingredients : ING102', name:'Organic Pineapple Powder',   pct:0.18,   available:1397 },
+      { sku:'Ingredients : ING103', name:'Organic Lemon Juice Powder', pct:0.06,   available:955  },
+      { sku:'Ingredients : ING075', name:'Organic Blue Spirulina',     pct:0.02,   available:378  },
+      { sku:'Ingredients : ING054', name:'Organic Ginger Powder',      pct:0.015,  available:688  },
+      { sku:'Ingredients : ING104', name:'Organic Kelp Powder',        pct:0.014,  available:252  },
+      { sku:'Ingredients : ING097', name:'Organic IodAID',             pct:0.0125, available:165  },
+    ]
+  },
+  // ── Drink Mixes ──
+  'PKG190v1.0': {
+    weightPerUnit: 129,
+    ingredients: [
+      { sku:'Ingredients : ING111', name:'Inulin Extract Powder', pct:0.7484, available:311   },
+      { sku:'Ingredients : ING102', name:'Pineapple Powder',      pct:0.14,   available:1397  },
+      { sku:'Ingredients : ING005', name:'Moringa Powder',        pct:0.06,   available:43049 },
+    ]
+  },
+  'PKG191v1.0': {
+    weightPerUnit: 129,
+    ingredients: [
+      { sku:'Ingredients : ING101', name:'Date Powder',    pct:0.4525, available:5349 },
+      { sku:'Ingredients : ING111', name:'Inulin Powder',  pct:0.124,  available:311  },
+      { sku:'Ingredients : ING057', name:'Hibiscus Powder',pct:0.093,  available:429  },
+      { sku:'Ingredients : ING039', name:'Baobab Powder',  pct:0.062,  available:722  },
+    ]
+  },
+  // ── Gummies ──
+  'PKG094v2.0': {
+    weightPerUnit: 228,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Moringa',       pct:0.0231, available:43049 },
+      { sku:'Ingredients : ING094', name:'Greens Powder', pct:0.0231, available:3748  },
+    ]
+  },
+  'PKG095v2.0': {
+    weightPerUnit: 228,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa Powder', pct:0.05, available:43049 },
+    ]
+  },
+  'PKG096': {
+    weightPerUnit: 228,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa', pct:0.05, available:43049 },
+    ]
+  },
+  'PKG108v2.1': {
+    weightPerUnit: 228,
+    ingredients: [
+      { sku:'Ingredients : ING039', name:'Organic Baobab Fruit Powder', pct:0.02372333, available:722 },
+    ]
+  },
+  'PKG121v1.0': {
+    weightPerUnit: 228,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa',           pct:0.03325,  available:43049 },
+      { sku:'Ingredients : ING051', name:'Organic Wheatgrass Powder', pct:0.00729,  available:0     },
+      { sku:'Ingredients : ING052', name:'Organic Barley',            pct:0.002961, available:0     },
+      { sku:'Ingredients : ING050', name:'Organic Broccoli Powder',   pct:0.00205,  available:216   },
+    ]
+  },
+  // ── Lattes ──
+  'PKG117v3.0': {
+    weightPerUnit: 128.64,
+    ingredients: [
+      { sku:'Ingredients : ING066', name:'Coconut Milk Powder',          pct:0.3793, available:4190 },
+      { sku:'Ingredients : ING065', name:'Seyal Acacia (Gum) - SD',      pct:0.3233, available:865  },
+      { sku:'Ingredients : ING061', name:'Coconut Palm Sugar',           pct:0.0433, available:220  },
+      { sku:'Ingredients : ING067', name:'MCT Oil Powder',               pct:0.0429, available:636  },
+      { sku:'Ingredients : ING068', name:'Vanilla Flavor WONF',          pct:0.0356, available:331  },
+      { sku:'Ingredients : ING080', name:'Creamy Strawberry Type Flavor',pct:0.0335, available:4    },
+      { sku:'Ingredients : ING057', name:'Hibiscus Powder',              pct:0.0268, available:429  },
+      { sku:'Ingredients : ING039', name:'Baobab Powder',                pct:0.0251, available:722  },
+      { sku:'Ingredients : ING069', name:'Bitterness Blocker',           pct:0.0218, available:122  },
+      { sku:'Ingredients : ING081', name:'Psyllium Husk Powder',         pct:0.0195, available:57   },
+      { sku:'Ingredients : ING082', name:'Strawberry Flavor WONF',       pct:0.019,  available:24   },
+      { sku:'Ingredients : ING083', name:'Starbucks Pink Drink Flavor',  pct:0.0137, available:31   },
+      { sku:'Ingredients : ING084', name:'Exberry Organics Fiesta Pink', pct:0.0123, available:4    },
+      { sku:'Ingredients : ING070', name:'Monk Fruit Extract V25',       pct:0.0039, available:31   },
+    ]
+  },
+  'PKG116v2.0': {
+    weightPerUnit: 75.68,
+    ingredients: [
+      { sku:'Ingredients : ING066', name:'Coconut Milk Powder',     pct:0.4388, available:4190 },
+      { sku:'Ingredients : ING061', name:'Coconut Palm Sugar',      pct:0.115,  available:220  },
+      { sku:'Ingredients : ING068', name:'Vanilla Flavor WONF',     pct:0.1102, available:331  },
+      { sku:'Ingredients : ING067', name:'MCT Oil Powder',          pct:0.0925, available:636  },
+      { sku:'Ingredients : ING053', name:'Lucuma',                  pct:0.0583, available:800  },
+      { sku:'Ingredients : ING072', name:'Honey Type Flavor',       pct:0.034,  available:74   },
+      { sku:'Ingredients : ING069', name:'Bitterness Blocker',      pct:0.024,  available:122  },
+      { sku:'Ingredients : ING075', name:'Spirulina Extract',       pct:0.0194, available:378  },
+      { sku:'Ingredients : ING076', name:'Lavender Flavor Powder',  pct:0.0155, available:42   },
+      { sku:'Ingredients : ING063', name:'Chamomile',               pct:0.0148, available:52   },
+      { sku:'Ingredients : ING077', name:'Chocolate Flavor Powder', pct:0.0139, available:64   },
+      { sku:'Ingredients : ING078', name:'Creamy Chocolate Flavor', pct:0.0139, available:51   },
+      { sku:'Ingredients : ING056', name:'Cinnamon Powder',         pct:0.0124, available:184  },
+      { sku:'Ingredients : ING064', name:'Passionflower',           pct:0.0111, available:33   },
+      { sku:'Ingredients : ING079', name:'Pink Himalayan Salt',     pct:0.0111, available:71   },
+      { sku:'Ingredients : ING074', name:'Aquamin MgS',             pct:0.0105, available:177  },
+      { sku:'Ingredients : ING070', name:'Monk Fruit Extract',      pct:0.0046, available:31   },
+    ]
+  },
+  'PKG118v2.1': {
+    weightPerUnit: 135.23,
+    ingredients: [
+      { sku:'Ingredients : ING066', name:'Coconut Milk Powder', pct:0.5,    available:4190  },
+      { sku:'Ingredients : ING071', name:'Matcha Powder',       pct:0.1812, available:577   },
+      { sku:'Ingredients : ING067', name:'MCT Oil Powder',      pct:0.1051, available:636   },
+      { sku:'Ingredients : ING061', name:'Coconut Palm Sugar',  pct:0.0635, available:220   },
+      { sku:'Ingredients : ING068', name:'Vanilla Flavor WONF', pct:0.0571, available:331   },
+      { sku:'Ingredients : ING056', name:'Cinnamon Powder',     pct:0.0246, available:184   },
+      { sku:'Ingredients : ING069', name:'Bitterness Blocker',  pct:0.0201, available:122   },
+      { sku:'Ingredients : ING005', name:'Moringa Powder',      pct:0.0182, available:43049 },
+      { sku:'Ingredients : ING072', name:'Honey Type Flavor',   pct:0.0091, available:74    },
+      { sku:'Ingredients : ING062', name:"Lion's Mane Extract", pct:0.0072, available:38    },
+      { sku:'Ingredients : ING054', name:'Ginger Powder',       pct:0.0054, available:688   },
+      { sku:'Ingredients : ING070', name:'Monk Fruit Extract',  pct:0.0049, available:31    },
+      { sku:'Ingredients : ING073', name:'B Vitamins',          pct:0.0036, available:17    },
+    ]
+  },
+  'PKG119v2.1': {
+    weightPerUnit: 89.89,
+    ingredients: [
+      { sku:'Ingredients : ING066', name:'Coconut Milk Powder',       pct:0.64,   available:4190 },
+      { sku:'Ingredients : ING061', name:'Coconut Palm Sugar',        pct:0.0688, available:220  },
+      { sku:'Ingredients : ING067', name:'MCT Oil Powder',            pct:0.08,   available:636  },
+      { sku:'Ingredients : ING068', name:'Vanilla Flavor WONF',       pct:0.048,  available:331  },
+      { sku:'Ingredients : ING087', name:'Nat Ube Type',              pct:0.032,  available:77   },
+      { sku:'Ingredients : ING089', name:'Exberry Shade Purple Plum', pct:0.028,  available:11   },
+      { sku:'Ingredients : ING053', name:'Lucuma Powder',             pct:0.024,  available:800  },
+      { sku:'Ingredients : ING069', name:'Bitterness Blocker',        pct:0.0208, available:122  },
+      { sku:'Ingredients : ING085', name:'Purple Ube Powder',         pct:0.0176, available:6    },
+      { sku:'Ingredients : ING090', name:'Org Coconut Flavor',        pct:0.016,  available:61   },
+      { sku:'Ingredients : ING088', name:'ORG Blueberry Flavor',      pct:0.0128, available:9    },
+      { sku:'Ingredients : ING086', name:'Purple Tea Extract',        pct:0.008,  available:6    },
+      { sku:'Ingredients : ING070', name:'Monk Fruit Extract',        pct:0.004,  available:31   },
+    ]
+  },
+  // ── Moringa Powder ──
+  'PKG074v6.0': {
+    weightPerUnit: 210,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa Leaf Powder', pct:1.0, available:43049 },
+    ]
+  },
+  'PKG077v6.0': {
+    weightPerUnit: 210,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa Leaf Powder', pct:1.0, available:43049 },
+    ]
+  },
+  'PKG103v2.0': {
+    weightPerUnit: 142,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa Leaf Powder', pct:1.0, available:43049 },
+    ]
+  },
+  'PKG104v1.0': {
+    weightPerUnit: 142,
+    ingredients: [
+      { sku:'Ingredients : ING005', name:'Organic Moringa Leaf Powder', pct:1.0, available:43049 },
+    ]
+  },
+};
+
+function kgNeeded(units, weightPerUnit, pct) {
+  return units * (weightPerUnit / 1000) * pct;
+}
+
+function maxUnitsFromStock(bom) {
+  return Math.floor(Math.min(...bom.ingredients.map(ing =>
+    ing.available / ((bom.weightPerUnit / 1000) * ing.pct)
+  )));
+}
+
+// Live sheet SKUs come as "Packaging : PKGxxx"; BOM keys are just "PKGxxx"
+function getBomKey(sku) {
+  return sku.replace(/^Packaging\s*:\s*/i, '').trim();
+}
+
+function renderIngredients(item) {
+  const bom = BOM[getBomKey(item.sku)];
+  if (!bom) {
+    return `
+      <div class="ingredients-empty fade-in">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M24 6C24 6 12 14 12 26C12 32.627 17.373 38 24 38C30.627 38 36 32.627 36 26C36 14 24 6 24 6Z" stroke="#026251" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M24 38V44" stroke="#026251" stroke-width="2" stroke-linecap="round"/>
+          <path d="M24 20V30" stroke="#026251" stroke-width="2" stroke-linecap="round"/>
+          <path d="M19 25H29" stroke="#026251" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <p>Ingredients coming soon</p>
+      </div>`;
+  }
+
+  const defaultUnits = 5000;
+  return `
+    <div class="calc-input-card fade-in">
+      <div class="calc-input-left">
+        <span class="calc-input-label">Units to Produce</span>
+        <span class="calc-input-sub">${bom.weightPerUnit}g per unit · ${(bom.weightPerUnit/1000).toFixed(3)} kg each</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;">
+        <input class="units-input" id="unitsInput" type="number" min="1" step="100" value="${defaultUnits}" oninput="updateCalc()" />
+        <span style="color:rgba(255,255,255,0.5);font-size:13px;">units</span>
+      </div>
+    </div>
+    <div class="calc-summary fade-in" style="animation-delay:30ms;" id="calcSummary"></div>
+    <div class="ing-table fade-in" style="animation-delay:60ms;">
+      <div class="ing-table-header">
+        <span class="ing-th">Ingredient</span>
+        <span class="ing-th" style="text-align:right;">Formula</span>
+        <span class="ing-th" style="text-align:right;">Kg Needed</span>
+        <span class="ing-th" style="text-align:right;">Available</span>
+        <span class="ing-th"></span>
+      </div>
+      <div id="ingRows"></div>
+    </div>`;
+}
+
+function updateCalc() {
+  const item = SKUs.find(s => s.sku === activeSkuId);
+  if (!item) return;
+  const bom = BOM[getBomKey(item.sku)];
+  if (!bom) return;
+
+  const units = parseInt(document.getElementById('unitsInput')?.value) || 0;
+  const maxU  = maxUnitsFromStock(bom);
+  const canMake = maxU >= units;
+
+  // Summary
+  const summaryEl = document.getElementById('calcSummary');
+  if (summaryEl) {
+    const cls = canMake ? 'ok' : 'short';
+    const verdictCls = canMake ? 'verdict-ok' : 'verdict-short';
+    const verdictLabel = canMake ? '✓ Enough Stock' : '✗ Insufficient Stock';
+    summaryEl.innerHTML = `
+      <div>
+        <div class="calc-summary-label">Max units from current stock</div>
+        <div class="calc-max-units ${cls}">${fmt(maxU)} units</div>
+      </div>
+      <span class="calc-verdict ${verdictCls}">${verdictLabel}</span>`;
+  }
+
+  // Ingredient rows
+  const rowsEl = document.getElementById('ingRows');
+  if (rowsEl) {
+    rowsEl.innerHTML = bom.ingredients.map(ing => {
+      const needed   = kgNeeded(units, bom.weightPerUnit, ing.pct);
+      const hasEnough = ing.available >= needed;
+      const shortClass = hasEnough ? '' : 'short-row';
+      const dotClass   = hasEnough ? 'ok' : 'short';
+      return `
+        <div class="ing-row ${shortClass}">
+          <span class="ing-name-wrap">
+            <span class="ing-name">${ing.name}</span>
+            <span class="ing-sku-tag">${ing.sku}</span>
+          </span>
+          <span class="ing-pct">${(ing.pct * 100).toFixed(1)}%</span>
+          <span class="ing-kg">${needed < 0.01 && needed > 0 ? '<0.01' : needed.toFixed(2)} kg</span>
+          <span class="ing-avail">${ing.available} kg</span>
+          <span class="ing-status ${dotClass}"></span>
+        </div>`;
+    }).join('');
+  }
+}
+
+// ── LIVE FETCH ────────────────────────────────────────────────────
+// Parse ING INV CSV into a map of { 'Ingredients : INGXXX': availableKg }
+function parseIngredientInventory(rows) {
+  const map = {};
+  let skuCol = -1, invCol = -1;
+  for (const row of rows) {
+    // Find the header row
+    if (skuCol === -1) {
+      const idx = row.findIndex(c => c.trim().toUpperCase() === 'SKU');
+      if (idx !== -1) {
+        skuCol = idx;
+        // Look for "Current Inventory" or "Available" column
+        invCol = row.findIndex(c => /current.?inv|available/i.test(c.trim()));
+        if (invCol === -1) invCol = skuCol + 2; // fallback: 3rd column
+      }
+      continue;
+    }
+    const sku = (row[skuCol] || '').trim();
+    if (!sku || !sku.startsWith('Ingredients')) continue;
+    const raw = (row[invCol] || '').replace(/,/g, '').trim();
+    const qty = parseFloat(raw);
+    if (!isNaN(qty)) map[sku] = qty;
+  }
+  return map;
+}
+
+// Apply live ingredient inventory to BOM
+function applyIngredientInventory(ingMap) {
+  if (!Object.keys(ingMap).length) return;
+  Object.values(BOM).forEach(bomEntry => {
+    bomEntry.ingredients.forEach(ing => {
+      if (ingMap.hasOwnProperty(ing.sku)) {
+        ing.available = ingMap[ing.sku];
+      }
+    });
+  });
+}
+
+async function fetchData() {
+  document.getElementById('sidebarNav').innerHTML =
+    `<div style="padding:20px 16px;color:rgba(255,255,255,0.35);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">Loading live data…</div>`;
+
+  // Fetch both sheets in parallel
+  const [pkgResult, ingResult] = await Promise.allSettled([
+    fetch(CSV_URL),
+    fetch(ING_CSV_URL)
+  ]);
+
+  // PKG INV — packaging inventory (sidebar data)
+  try {
+    if (pkgResult.status !== 'fulfilled' || !pkgResult.value.ok)
+      throw new Error('PKG fetch failed');
+    const rows = parseCSV(await pkgResult.value.text());
+    const parsed = parseSheetData(rows);
+    if (!parsed.length) throw new Error('Empty PKG data');
+    SKUs = parsed;
+  } catch (err) {
+    console.warn('PKG live fetch failed — using cached data.', err.message);
+    SKUs = FALLBACK_SKUs;
+    document.getElementById('last-updated').textContent = 'Cached · 07-13-2026';
+  }
+
+  // ING INV — ingredient inventory (BOM available values)
+  try {
+    if (ingResult.status !== 'fulfilled' || !ingResult.value.ok)
+      throw new Error('ING fetch failed');
+    const ingRows = parseCSV(await ingResult.value.text());
+    const ingMap = parseIngredientInventory(ingRows);
+    applyIngredientInventory(ingMap);
+    console.log(`Live ingredient inventory loaded: ${Object.keys(ingMap).length} ingredients`);
+  } catch (err) {
+    console.warn('ING live fetch failed — using hardcoded BOM values.', err.message);
+  }
+
+  renderSidebar();
+}
+
+const CATEGORY_LABELS = {
+  DRNKMX: "Drink Mix",
+  GUM:    "Gummies",
+  LATTE:  "Lattes",
+  PM:     "Powder Mix",
+  SFBLND: "Superfood Blends",
+};
+
+// Categories derived from live data at render time (not at parse time)
+function getCategories() { return [...new Set(SKUs.map(s => s.category))]; }
+
+function getStatus(item) {
+  if (item.inventory === 0) return "stockout";
+  if (item.inventory < 3000) return "low";
+  return "stocked";
+}
+
+function dotClass(item) {
+  const s = getStatus(item);
+  return s === "stocked" ? "dot-green" : s === "low" ? "dot-orange" : "dot-red";
+}
+
+function fmt(n) {
+  return n.toLocaleString("en-US");
+}
+
+// ── SIDEBAR RENDER ────────────────────────────────────────────────
+function renderSidebar(filter = "") {
+  const nav = document.getElementById("sidebarNav");
+  nav.innerHTML = "";
+
+  getCategories().forEach(cat => {
+    const items = SKUs.filter(s =>
+      s.category === cat &&
+      (filter === "" || s.name.toLowerCase().includes(filter) || s.sku.toLowerCase().includes(filter))
+    );
+    if (items.length === 0) return;
+
+    const group = document.createElement("div");
+    group.className = "category-group";
+    group.dataset.cat = cat;
+
+    group.innerHTML = `
+      <div class="category-header">
+        <span class="category-label">${CATEGORY_LABELS[cat] || cat}</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <span class="category-count">${items.length}</span>
+          <span class="category-chevron">▾</span>
+        </div>
+      </div>
+      <ul class="item-list">
+        ${items.map(item => `
+          <li>
+            <button class="item-btn" data-sku="${item.sku}" onclick="selectItem('${item.sku}')">
+              <span class="item-dot ${dotClass(item)}"></span>
+              <span class="item-name">${item.name}</span>
+            </button>
+          </li>
+        `).join("")}
+      </ul>
+    `;
+
+    group.querySelector(".category-header").addEventListener("click", () => {
+      group.classList.toggle("collapsed");
+    });
+
+    nav.appendChild(group);
+  });
+}
+
+// ── DETAIL PANEL ───────────────────────────────────────────────────
+let activeSkuId = null;
+let activeTab = "ingredients";
+
+function selectItem(skuId) {
+  activeSkuId = skuId;
+  activeTab = "ingredients"; // reset to ingredients tab on new item
+
+  // highlight sidebar
+  document.querySelectorAll(".item-btn").forEach(b => b.classList.toggle("active", b.dataset.sku === skuId));
+
+  renderDetail();
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.dataset.panel === tab));
+  const sku = document.getElementById("skuLabel");
+  if (sku) sku.style.visibility = tab === "packaging" ? "visible" : "hidden";
+  if (tab === "ingredients") updateCalc();
+}
+
+function renderDetail() {
+  const item = SKUs.find(s => s.sku === activeSkuId);
+  if (!item) return;
+
+  const status = getStatus(item);
+  const badgeCls = status === "stocked" ? "badge-stocked" : status === "low" ? "badge-low" : "badge-stockout";
+  const badgeLabel = status === "stocked" ? "● Stocked" : status === "low" ? "● Low Stock" : "● Out of Stock";
+  const invClass = item.inventory === 0 ? " zero" : "";
+
+  const imgUrl = PRODUCT_IMAGES[item.sku];
+  const imgHtml = imgUrl
+    ? `<div class="product-img-wrap"><img src="${imgUrl}" alt="${item.name}" /></div>`
+    : `<div class="product-img-placeholder">
+        <svg width="36" height="36" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="8" width="28" height="22" rx="3" stroke="#026251" stroke-opacity="0.25" stroke-width="1.5"/>
+          <circle cx="13" cy="16" r="3" stroke="#026251" stroke-opacity="0.25" stroke-width="1.5"/>
+          <path d="M4 24L11 18L16 23L22 17L32 24" stroke="#026251" stroke-opacity="0.25" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>`;
+
+  const html = `
+    <div class="detail-header fade-in">
+      <div style="display:flex;align-items:flex-start;gap:16px;flex:1;">
+        ${imgHtml}
+        <div>
+          <span class="detail-category-chip">${CATEGORY_LABELS[item.category] || item.category}</span>
+          <div class="detail-name">${item.name}</div>
+          <div class="detail-sku" id="skuLabel" style="visibility:${activeTab === 'packaging' ? 'visible' : 'hidden'}">${item.sku}</div>
+        </div>
+      </div>
+      <span class="status-badge ${badgeCls}">${badgeLabel}</span>
+    </div>
+
+    <div class="tab-bar fade-in" style="animation-delay:20ms;">
+      <button class="tab-btn ${activeTab === 'ingredients' ? 'active' : ''}" data-tab="ingredients" onclick="switchTab('ingredients')">Ingredients</button>
+      <button class="tab-btn ${activeTab === 'packaging' ? 'active' : ''}" data-tab="packaging" onclick="switchTab('packaging')">Packaging</button>
+    </div>
+
+    <div class="tab-panel ${activeTab === 'ingredients' ? 'active' : ''}" data-panel="ingredients">
+      ${renderIngredients(item)}
+    </div>
+
+    <div class="tab-panel ${activeTab === 'packaging' ? 'active' : ''}" data-panel="packaging">
+      <div class="stats-grid fade-in" style="animation-delay:40ms;">
+        <div class="stat-card">
+          <span class="stat-label">Current Inventory</span>
+          <span class="stat-value${invClass}">${fmt(item.inventory)}</span>
+          <span class="stat-sub">units on hand</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Next Production</span>
+          <span class="stat-value" style="font-size:20px;">${item.nextProdDate}</span>
+          <span class="stat-sub">${fmt(item.nextProdQty)} units planned</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Supplier Lead Time</span>
+          <span class="stat-value" style="font-size:20px;">${item.leadTime}</span>
+          <span class="stat-sub">from order to delivery</span>
+        </div>
+      </div>
+
+      <div class="info-card fade-in" style="animation-delay:80ms;">
+        <div class="info-card-title">Procurement Details</div>
+
+        <div class="info-row">
+          <span class="info-row-label">Open Purchase Order</span>
+          <span class="info-row-value">
+            ${item.po
+              ? `<span class="po-badge">📦 ${item.po}</span>`
+              : `<span class="po-none">— No open PO</span>`
+            }
+          </span>
+        </div>
+
+      </div>
+    </div>
+  `;
+
+  document.getElementById("mainPanel").innerHTML = html;
+  if (activeTab === 'ingredients') updateCalc();
+}
+
+// ── SEARCH ─────────────────────────────────────────────────────────
+document.getElementById("searchInput").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  renderSidebar(q);
+  // if active item is still visible, re-highlight
+  if (activeSkuId) {
+    const btn = document.querySelector(`.item-btn[data-sku="${activeSkuId}"]`);
+    if (btn) btn.classList.add("active");
+  }
+});
+
+// ── INIT ──────────────────────────────────────────────────────────
+fetchData();
+</script>
+</body>
+</html>
