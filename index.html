@@ -1229,7 +1229,7 @@ function renderDetail() {
   const badgeLabel = status === "stocked" ? "● Stocked" : status === "low" ? "● Low Stock" : "● Out of Stock";
   const invClass = item.inventory === 0 ? " zero" : "";
 
-  const imgUrl = PRODUCT_IMAGES[item.sku];
+  const imgUrl = PRODUCT_IMAGES[getBomKey(item.sku)];
   const imgHtml = imgUrl
     ? `<div class="product-img-wrap"><img src="${imgUrl}" alt="${item.name}" /></div>`
     : `<div class="product-img-placeholder">
