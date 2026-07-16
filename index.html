@@ -516,6 +516,13 @@
     .calc-max-units.ok    { color: #52B480; }
     .calc-max-units.warn  { color: var(--orange); }
     .calc-max-units.short { color: #E05252; }
+    .bottleneck-note {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--orange);
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: 0.03em;
+    }
 
     .calc-verdict {
       font-family: 'JetBrains Mono', monospace;
@@ -1016,10 +1023,17 @@ function kgNeeded(units, weightPerUnit, pct) {
   return units * (weightPerUnit / 1000) * pct;
 }
 
-function maxUnitsFromStock(bom) {
-  return Math.floor(Math.min(...bom.ingredients.map(ing =>
+function maxUnitsFromStock(bom, pkgInventory) {
+  const fromIngredients = Math.floor(Math.min(...bom.ingredients.map(ing =>
     ing.available / ((bom.weightPerUnit / 1000) * ing.pct)
   )));
+  const fromPackaging = (pkgInventory != null && isFinite(pkgInventory)) ? pkgInventory : Infinity;
+  return {
+    total: Math.min(fromIngredients, fromPackaging),
+    fromIngredients,
+    fromPackaging,
+    bottleneck: fromPackaging < fromIngredients ? 'packaging' : 'ingredients'
+  };
 }
 
 // Live sheet SKUs come as "Packaging : PKGxxx"; BOM keys are just "PKGxxx"
@@ -1074,7 +1088,8 @@ function updateCalc() {
   if (!bom) return;
 
   const units = parseInt(document.getElementById('unitsInput')?.value) || 0;
-  const maxU  = maxUnitsFromStock(bom);
+  const maxResult = maxUnitsFromStock(bom, item.inventory);
+  const maxU = maxResult.total;
   const canMake = maxU >= units;
 
   // Summary
@@ -1083,10 +1098,14 @@ function updateCalc() {
     const cls = canMake ? 'ok' : 'short';
     const verdictCls = canMake ? 'verdict-ok' : 'verdict-short';
     const verdictLabel = canMake ? '✓ Enough Stock' : '✗ Insufficient Stock';
+    const bottleneckNote = (!canMake && maxResult.bottleneck === 'packaging')
+      ? `<div class="bottleneck-note">⚠ Not enough pouches — only ${fmt(maxResult.fromPackaging)} units of packaging on hand</div>`
+      : '';
     summaryEl.innerHTML = `
       <div>
         <div class="calc-summary-label">Max units from current stock</div>
         <div class="calc-max-units ${cls}">${fmt(maxU)} units</div>
+        ${bottleneckNote}
       </div>
       <span class="calc-verdict ${verdictCls}">${verdictLabel}</span>`;
   }
