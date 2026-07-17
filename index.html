@@ -726,6 +726,8 @@
 // ── GOOGLE SHEETS SOURCE ──────────────────────────────────────────
 const CSV_URL     = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQAwNh4drdRvrTMBXsYUH0a7XkgD_s9e4mpo_cJcqCUawWnRVV9N3f6ctmOLm-RPxm3gPHmPTfOI3VT/pub?gid=0&single=true&output=csv';
 const ING_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQAwNh4drdRvrTMBXsYUH0a7XkgD_s9e4mpo_cJcqCUawWnRVV9N3f6ctmOLm-RPxm3gPHmPTfOI3VT/pub?gid=2057217891&single=true&output=csv';
+// BOM_CSV_URL: publish the "BOM" tab and paste the CSV link here
+const BOM_CSV_URL = '';
 
 // ── FALLBACK DATA (used if sheet is not yet public) ───────────────
 const FALLBACK_SKUs = [
@@ -1181,15 +1183,46 @@ function applyIngredientInventory(ingMap) {
   });
 }
 
+// Parse BOM CSV into the same structure as the hardcoded BOM object
+// Expected columns: PKG_SKU, Weight_g, Ingredient_SKU, Ingredient_Name, Pct
+function parseBOMSheet(rows) {
+  const bom = {};
+  let pkgCol=-1, wtCol=-1, ingSkuCol=-1, ingNameCol=-1, pctCol=-1;
+  for (const row of rows) {
+    if (pkgCol === -1) {
+      // Find header row
+      const up = row.map(c => c.trim().toUpperCase());
+      pkgCol    = up.findIndex(c => c.includes('PKG') || c === 'SKU' || c.includes('PRODUCT'));
+      wtCol     = up.findIndex(c => c.includes('WEIGHT') || c.includes('_G') || c === 'G');
+      ingSkuCol = up.findIndex(c => c.includes('INGREDIENT') && c.includes('SKU'));
+      ingNameCol= up.findIndex(c => c.includes('INGREDIENT') && c.includes('NAME'));
+      pctCol    = up.findIndex(c => c.includes('PCT') || c.includes('PERCENT') || c === '%');
+      if (pkgCol === -1 || wtCol === -1 || pctCol === -1) continue;
+      if (ingSkuCol === -1) ingSkuCol = 2;
+      if (ingNameCol === -1) ingNameCol = 3;
+      continue;
+    }
+    const pkg = (row[pkgCol] || '').trim();
+    if (!pkg || pkg.toUpperCase() === 'PKG_SKU') continue;
+    const wt  = parseFloat((row[wtCol] || '').replace(/,/g,''));
+    const ingSku  = (row[ingSkuCol] || '').trim();
+    const ingName = (row[ingNameCol] || '').trim();
+    const pct = parseFloat((row[pctCol] || '').replace(/,/g,''));
+    if (!pkg || isNaN(wt) || !ingSku || isNaN(pct)) continue;
+    if (!bom[pkg]) bom[pkg] = { weightPerUnit: wt, ingredients: [] };
+    bom[pkg].ingredients.push({ sku: ingSku, name: ingName, pct, available: 0 });
+  }
+  return bom;
+}
+
 async function fetchData() {
   document.getElementById('sidebarNav').innerHTML =
     `<div style="padding:20px 16px;color:rgba(255,255,255,0.35);font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:0.1em;text-transform:uppercase;">Loading live data…</div>`;
 
-  // Fetch both sheets in parallel
-  const [pkgResult, ingResult] = await Promise.allSettled([
-    fetch(CSV_URL),
-    fetch(ING_CSV_URL)
-  ]);
+  // Fetch all sheets in parallel (BOM tab optional — skipped if URL not set)
+  const fetches = [fetch(CSV_URL), fetch(ING_CSV_URL)];
+  if (BOM_CSV_URL) fetches.push(fetch(BOM_CSV_URL));
+  const [pkgResult, ingResult, bomResult] = await Promise.allSettled(fetches);
 
   // PKG INV — packaging inventory (sidebar data)
   try {
@@ -1215,6 +1248,23 @@ async function fetchData() {
     console.log(`Live ingredient inventory loaded: ${Object.keys(ingMap).length} ingredients`);
   } catch (err) {
     console.warn('ING live fetch failed — using hardcoded BOM values.', err.message);
+  }
+
+  // BOM tab — formula/percentage data (optional; falls back to hardcoded BOM)
+  if (BOM_CSV_URL && bomResult) {
+    try {
+      if (bomResult.status !== 'fulfilled' || !bomResult.value.ok)
+        throw new Error('BOM fetch failed');
+      const bomRows = parseCSV(await bomResult.value.text());
+      const liveBOM = parseBOMSheet(bomRows);
+      const skuCount = Object.keys(liveBOM).length;
+      if (!skuCount) throw new Error('Empty BOM data');
+      // Merge live BOM into global BOM (replace matching SKUs, keep any extras)
+      Object.assign(BOM, liveBOM);
+      console.log(`Live BOM loaded: ${skuCount} SKUs`);
+    } catch (err) {
+      console.warn('BOM live fetch failed — using hardcoded BOM.', err.message);
+    }
   }
 
   renderSidebar();
