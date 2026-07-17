@@ -637,7 +637,13 @@
       font-size: 13px; color: #c0392b; text-align: center;
       min-height: 18px;
     }
-    #appRoot { display: contents; }
+    #appRoot {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
   </style>
 </head>
 <body>
@@ -1411,7 +1417,7 @@ function handleLogin(e) {
   if (val === CORRECT_PWD) {
     sessionStorage.setItem(SESSION_KEY, '1');
     document.getElementById('loginOverlay').classList.add('hidden');
-    document.getElementById('appRoot').style.display = 'contents';
+    document.getElementById('appRoot').style.display = 'flex';
     fetchData();
   } else {
     const err = document.getElementById('loginError');
@@ -1425,7 +1431,7 @@ function handleLogin(e) {
 // Check session on load
 if (sessionStorage.getItem(SESSION_KEY) === '1') {
   document.getElementById('loginOverlay').classList.add('hidden');
-  document.getElementById('appRoot').style.display = 'contents';
+  document.getElementById('appRoot').style.display = 'flex';
   fetchData();
 }
 </script>
