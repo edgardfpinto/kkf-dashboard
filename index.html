@@ -1242,11 +1242,13 @@ async function fetchData() {
   }
 
   // ING INV — ingredient inventory (BOM available values)
+  // Store ingMap so we can re-apply it after the live BOM overwrites BOM entries
+  let ingMap = {};
   try {
     if (ingResult.status !== 'fulfilled' || !ingResult.value.ok)
       throw new Error('ING fetch failed');
     const ingRows = parseCSV(await ingResult.value.text());
-    const ingMap = parseIngredientInventory(ingRows);
+    ingMap = parseIngredientInventory(ingRows);
     applyIngredientInventory(ingMap);
     console.log(`Live ingredient inventory loaded: ${Object.keys(ingMap).length} ingredients`);
   } catch (err) {
@@ -1265,6 +1267,8 @@ async function fetchData() {
       // Merge live BOM into global BOM (replace matching SKUs, keep any extras)
       Object.assign(BOM, liveBOM);
       console.log(`Live BOM loaded: ${skuCount} SKUs`);
+      // Re-apply ingredient inventory since liveBOM entries start with available=0
+      applyIngredientInventory(ingMap);
     } catch (err) {
       console.warn('BOM live fetch failed — using hardcoded BOM.', err.message);
     }
